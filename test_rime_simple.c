@@ -51,7 +51,9 @@
 
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
-AUTOSTART_PROCESSES(&example_broadcast_process);
+PROCESS(main_process, "main_process");
+//AUTOSTART_PROCESSES(&example_broadcast_process);
+AUTOSTART_PROCESSES(&main_process);
 /*---------------------------------------------------------------------------*/
 static struct unicast_conn uc;
 static struct broadcast_conn broadcast;
@@ -71,14 +73,10 @@ static int flag_bcast_over_or_aborted=0;
 static int local_seq_number=0;
 //
 
-//simple statistics
-static int succ=0;
-static int aborted=0;
-static int timeout=0;
-static int taken_at_init=0;	 
 
 
 static process_event_t event_bcast_over;
+static process_event_t event_2pc_succ;
 
 struct message_struct{
         int id;
@@ -264,14 +262,17 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
   //saved_seq_numbers=(int *) malloc(num_nodes*sizeof(int));
   saved_seq_numbers[node_id -1]=0;	 
   local_seq_number=saved_seq_numbers[node_id-1];
-
-  broadcast_open(&broadcast, 129, &broadcast_call);
-  unicast_open(&uc, 146, &unicast_callbacks);
   printf("Node id %d \n",node_id);
   static int dummy=0;
+  //simple statistics
+  static int succ=0;
+  static int aborted=0;
+  static int timeout=0;
+  static int taken_at_init=0;	 
+  static int total=0;
   while(1) {
-	
-    if((node_id==5)||(node_id==6)){
+	total++;
+    //if((node_id==5)||(node_id==6)){
 	for (i=0;i<num_nodes;i++) votes[i]=0; 
         votes[node_id-1]=1;
 
@@ -331,16 +332,40 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
                         //node_seq_number++;
 		aborted++;
         }
-	if (node_id==5) {
-		printf("Statistics: Total %d, succesfull %d, aborted %d, timedout %d, busy at start %d\n",
-			saved_seq_numbers[node_id-1]-1,succ,aborted,timeout,taken_at_init);
+		printf("Statistics_%d: Total %d, succesfull %d, aborted %d, timedout %d, busy at start %d\n",node_id,
+			saved_seq_numbers[node_id-1],succ,aborted,timeout,taken_at_init);
+        if ((flag)==1) {
+        	event_2pc_succ = process_alloc_event();
+                process_post(&main_process,event_2pc_succ,NULL);
+		break;
 	}
-    }
-    else{
-	PROCESS_WAIT_EVENT();
-	}
+    //}
+    //else{
+    //	PROCESS_WAIT_EVENT();
+    //	}
    }
 
+  PROCESS_END();
+}
+
+
+PROCESS_THREAD(main_process, ev, data)
+{
+
+  //PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
+
+  PROCESS_BEGIN();
+  broadcast_open(&broadcast, 129, &broadcast_call);
+  unicast_open(&uc, 146, &unicast_callbacks);
+  if ((node_id==5)||(node_id==6)){
+  	process_start(&example_broadcast_process,"START_BCAST");
+	//printf("called the other process\n");
+	PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_succ );
+	printf("2PC was successful\n");
+  }
+  while(1){
+	PROCESS_WAIT_EVENT();
+  }
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
