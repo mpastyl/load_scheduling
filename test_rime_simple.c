@@ -45,22 +45,23 @@
 
 #include "dev/leds.h"
 
+//#include "shared_variables.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /*---------------------------------------------------------------------------*/
 PROCESS(example_broadcast_process, "Broadcast example");
-PROCESS(main_process, "main_process");
-//AUTOSTART_PROCESSES(&example_broadcast_process);
-AUTOSTART_PROCESSES(&main_process);
+PROCESS(start_2pc_process, "start_2pc_process");
+//AUTOSTART_PROCESSES(&start_2pc_process);
 /*---------------------------------------------------------------------------*/
-static struct unicast_conn uc;
-static struct broadcast_conn broadcast;
+//static struct unicast_conn uc;
+//static struct broadcast_conn broadcast;
 
 #define TIMEOUT		(2*CLOCK_SECOND)
 
-static int naive_counter=0;
+/*static int naive_counter=0;
 static int votes[6]; 
 static int saved_seq_numbers[6];
 static int num_nodes=6;
@@ -72,13 +73,13 @@ static int flag_bcast_over_or_aborted=0;
 //
 static int local_seq_number=0;
 //
-
+*/
 
 
 static process_event_t event_bcast_over;
 static process_event_t event_2pc_succ;
 
-struct message_struct{
+struct message_2pc_struct{
         int id;
         int seq;
         char * msg;
@@ -102,7 +103,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   naive_counter++;
 
 
-  struct message_struct *received_message;
+  struct message_2pc_struct *received_message;
   received_message=packetbuf_dataptr();
   int sender_id=received_message->id;
   int sender_seq=received_message->seq;
@@ -116,7 +117,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   //clock_delay(random_rand()*(CLOCK_SECOND/100));
   printf("replaying back with a unicast\n");
         if (!strcmp(sender_msg,"BOGUS")){
-                struct message_struct new_message;
+                struct message_2pc_struct new_message;
                 new_message.id=node_id;
                 new_message.seq=sender_seq;
                 new_message.msg="GOT_BOGUS";
@@ -128,7 +129,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 		return;
         }
         if (!strcmp(sender_msg,"REQUEST_COMMIT")){
-                struct message_struct new_message;
+                struct message_2pc_struct new_message;
                 new_message.id=node_id;
                 new_message.seq=sender_seq;
                 if (state==0){
@@ -171,7 +172,7 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 
 
 	int i;
-        struct message_struct *received_message;
+        struct message_2pc_struct *received_message;
         received_message=packetbuf_dataptr();
         int sender_id=received_message->id;
         int sender_seq=received_message->seq;
@@ -196,7 +197,7 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
         }
         else votes[sender_id-1]=2;
 
-        struct message_struct new_message;
+        struct message_2pc_struct new_message;
 
         int flag=0;
         int aborted=0;
@@ -251,7 +252,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 {
   static struct etimer et;
   static struct etimer timeout_timer;
-  struct message_struct bcast_msg;
+  struct message_2pc_struct bcast_msg;
   int i;
 
   PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
@@ -279,9 +280,9 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
     	/* Delay 2-4 seconds */
 	dummy++;
 	printf("dummy %d \n",dummy);
-    	etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
+    	//etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
 
-    	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    	//PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 	//bcast_msg.id=node_id;
         //bcast_msg.seq=node_seq_number;
         //bcast_msg.msg="BOGUS";
@@ -298,6 +299,9 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 		local_seq_number=saved_seq_numbers[node_id-1];
 		taken_at_init++;
 		printf("Bcast no %d unsuccesfull, backing off and retrying\n",saved_seq_numbers[node_id-1]-1);
+    		etimer_set(&et, CLOCK_SECOND * 1 + random_rand() % (CLOCK_SECOND * 1));
+
+    		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
         	continue;
 	}
 	state=1;
@@ -336,7 +340,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 			saved_seq_numbers[node_id-1],succ,aborted,timeout,taken_at_init);
         if ((flag)==1) {
         	event_2pc_succ = process_alloc_event();
-                process_post(&main_process,event_2pc_succ,NULL);
+                process_post(&start_2pc_process,event_2pc_succ,NULL);
 		break;
 	}
     //}
@@ -349,23 +353,31 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 }
 
 
-PROCESS_THREAD(main_process, ev, data)
+PROCESS_THREAD(start_2pc_process, ev, data)
 {
 
   //PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
-
+  static struct etimer et;
+  static struct shared_to_comm_message * new_msg;
   PROCESS_BEGIN();
-  broadcast_open(&broadcast, 129, &broadcast_call);
-  unicast_open(&uc, 146, &unicast_callbacks);
+  //broadcast_open(&broadcast, 129, &broadcast_call);
+  //unicast_open(&uc, 146, &unicast_callbacks);
+  
+  etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   if ((node_id==5)||(node_id==6)){
+	new_msg=(struct shared_to_comm_message *)data;
+        int w_loc = new_msg->w_loc;
+	int w_value = new_msg->w_value;
+	printf(" got: wloc -> %d   wvalue %d \n",w_loc,w_value); 
   	process_start(&example_broadcast_process,"START_BCAST");
 	//printf("called the other process\n");
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_succ );
 	printf("2PC was successful\n");
   }
-  while(1){
-	PROCESS_WAIT_EVENT();
-  }
+  //while(1){
+//	PROCESS_WAIT_EVENT();
+//  }
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
