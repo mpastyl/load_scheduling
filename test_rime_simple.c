@@ -45,7 +45,7 @@
 
 #include "dev/leds.h"
 
-//#include "shared_variables.h"
+#include "shared_variables.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -254,11 +254,14 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
   static struct etimer timeout_timer;
   struct message_2pc_struct bcast_msg;
   int i;
-
+  static struct shared_to_comm_message target_msg;
   PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
 
   PROCESS_BEGIN();
  
+  target_msg.w_loc= ((struct shared_to_comm_message *)data)->w_loc;
+  target_msg.w_value= ((struct shared_to_comm_message *)data)->w_value;
+  printf("trying to commit %d   %d \n",target_msg.w_loc, target_msg.w_value);
   //votes=(int *) malloc(num_nodes*sizeof(int));
   //saved_seq_numbers=(int *) malloc(num_nodes*sizeof(int));
   saved_seq_numbers[node_id -1]=0;	 
@@ -358,19 +361,21 @@ PROCESS_THREAD(start_2pc_process, ev, data)
 
   //PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
   static struct etimer et;
-  static struct shared_to_comm_message * new_msg;
+  static struct shared_to_comm_message  brand_new_msg;
   PROCESS_BEGIN();
   //broadcast_open(&broadcast, 129, &broadcast_call);
   //unicast_open(&uc, 146, &unicast_callbacks);
-  
+  //PROCESS_WAIT_EVENT_UNTIL( ev == event_start_bcast);  
+  //printf("asdasdaa\n");
+  brand_new_msg.w_loc=((struct shared_to_comm_message *) data)->w_loc;
+  brand_new_msg.w_value=((struct shared_to_comm_message *) data)->w_value;
+  //wa_loc = brand_new_msg.w_loc;
+  //wa_value = brand_new_msg.w_value;
   etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   if ((node_id==5)||(node_id==6)){
-	new_msg=(struct shared_to_comm_message *)data;
-        int w_loc = new_msg->w_loc;
-	int w_value = new_msg->w_value;
-	printf(" got: wloc -> %d   wvalue %d \n",w_loc,w_value); 
-  	process_start(&example_broadcast_process,"START_BCAST");
+  	printf(" got: wloc -> %d   wvalue %d \n",brand_new_msg.w_loc,brand_new_msg.w_value); 
+  	process_start(&example_broadcast_process,&brand_new_msg);
 	//printf("called the other process\n");
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_succ );
 	printf("2PC was successful\n");

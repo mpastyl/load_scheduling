@@ -21,7 +21,7 @@ AUTOSTART_PROCESSES(&main_process);
 PROCESS_THREAD(main_process, ev, data)
 {
 
-  static struct shared_to_comm_message new_msg;
+  struct shared_to_comm_message new_msg;
   PROCESS_BEGIN();
   
   broadcast_open(&broadcast, 129, &broadcast_call);
@@ -31,7 +31,10 @@ PROCESS_THREAD(main_process, ev, data)
   new_msg.w_value= node_id+5;
 
   process_start(&start_2pc_process,&new_msg);
-  //process_start(&start_2pc_process,);
+  //event_start_bcast = process_alloc_event();
+  //process_post(&start_2pc_process,event_start_bcast,NULL);
+  //process_start(&start_2pc_process,&new_msg);
+  //process_start(&start_2pc_process,NULL);
   //process_post(&start_2pc_process,NULL,&new_msg);
 
   while(1) PROCESS_WAIT_EVENT();

@@ -1,3 +1,5 @@
+#ifndef _SHARED_VARIABLES_H_
+#define _SHARED_VARIABLES_H_
 PROCESS_NAME(main_process);
 PROCESS_NAME(start_2pc_process);
 PROCESS_NAME(example_broadcast_process);
@@ -23,4 +25,7 @@ static int local_seq_number=0;
 static struct shared_to_comm_message{
 	int w_loc;
 	int w_value;
-}; 
+};
+
+static process_event_t event_start_bcast;
+#endif
