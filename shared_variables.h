@@ -25,7 +25,10 @@ static int local_seq_number=0;
 static struct shared_to_comm_message{
 	int w_loc;
 	int w_value;
+	char * op;
+	int exp_value;
 };
 
 static process_event_t event_start_bcast;
+static process_event_t event_2pc_to_comm;
 #endif
