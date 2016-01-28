@@ -234,7 +234,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 {
   static struct etimer et;
   static struct etimer timeout_timer;
-  struct message_2pc_struct bcast_msg;
+  static struct message_2pc_struct bcast_msg;
   int i;
   static struct shared_to_comm_message target_msg;
   PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
@@ -323,10 +323,17 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
         else{
                 printf("Bcast no %d unsuccesfull, backing off and retrying\n",saved_seq_numbers[node_id-1]-1);
                         //node_seq_number++;
+		aborted++;
+		printf("HEY!!!! %s\n",bcast_msg.op);
+		if (!strcmp(bcast_msg.op,"COMP_AND_SWAP")){
+			printf("I should quit now\n");
+        		event_2pc_succ = process_alloc_event();
+                	process_post(&start_2pc_process,event_2pc_succ,"2PC_F");
+			break;
+		}
     		etimer_set(&et, CLOCK_SECOND * 1 + random_rand() % (CLOCK_SECOND * 1));
 
     		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-		aborted++;
         }
 	
 	printf("Statistics_%d: Total %d, succesfull %d, aborted %d, timedout %d, busy at start %d\n",node_id,
@@ -334,7 +341,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
         if ((flag)==1) {
 		printf("2pc succesfull??\n");
         	event_2pc_succ = process_alloc_event();
-                process_post(&start_2pc_process,event_2pc_succ,NULL);
+                process_post(&start_2pc_process,event_2pc_succ,"2PC_S");
 		break;
 	}
     //}
@@ -370,9 +377,16 @@ PROCESS_THREAD(start_2pc_process, ev, data)
   	process_start(&example_broadcast_process,&brand_new_msg);
 	//printf("called the other process\n");
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_succ );
-	printf("2PC was successful\n");
-  	event_2pc_to_comm = process_alloc_event();
-        process_post(&main_process,event_2pc_to_comm,NULL);
+	if(!strcmp(data,"2PC_S")){
+		printf("2PC was successful\n");
+  		event_2pc_to_comm = process_alloc_event();
+        	process_post(&main_process,event_2pc_to_comm,"BCAST_S");
+	}
+	else{
+		printf("2PC was unsuccessful because a conflict was detected and you wanted cmp_and_swap\n");
+  		event_2pc_to_comm = process_alloc_event();
+        	process_post(&main_process,event_2pc_to_comm,"BCAST_F");
+	}
   }
   //while(1){
 //	PROCESS_WAIT_EVENT();

@@ -52,10 +52,16 @@ PROCESS_THREAD(main_process, ev, data)
   Shared_Write(node_id,node_id+5);
   PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_to_comm );
   printf("ouf\n");
-  Shared_Comp_and_Swap(node_id,11,node_id+5);
+  Shared_Comp_and_Swap(node_id,10,node_id+5);
 
   PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_to_comm );
   printf("ouf2\n");
+  if(!(strcmp(data,"BCAST_S"))){
+ 	printf("Comp and Swap was succ\n");
+  }
+  else{
+ 	printf("Comp and Swap was not succ\n");
+  }
   //process_start(&start_2pc_process,&new_msg);
   //event_start_bcast = process_alloc_event();
   //process_post(&start_2pc_process,event_start_bcast,NULL);
