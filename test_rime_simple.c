@@ -360,18 +360,14 @@ PROCESS_THREAD(start_2pc_process, ev, data)
   //PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
   static struct etimer et;
   PROCESS_BEGIN();
-  //broadcast_open(&broadcast, 129, &broadcast_call);
-  //unicast_open(&uc, 146, &unicast_callbacks);
-  //PROCESS_WAIT_EVENT_UNTIL( ev == event_start_bcast);  
-  //printf("asdasdaa\n");
+  
   brand_new_msg.w_loc=((struct shared_to_comm_message *) data)->w_loc;
   brand_new_msg.w_value=((struct shared_to_comm_message *) data)->w_value;
   brand_new_msg.op=((struct shared_to_comm_message *) data)->op;
   brand_new_msg.exp_value= ((struct shared_to_comm_message *) data)->exp_value;
-  //wa_loc = brand_new_msg.w_loc;
-  //wa_value = brand_new_msg.w_value;
-  etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+  
+  //etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
+  //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   if ((node_id==5)||(node_id==6)){
   	printf(" got: wloc -> %d   wvalue %d \n",brand_new_msg.w_loc,brand_new_msg.w_value); 
   	process_start(&example_broadcast_process,&brand_new_msg);
