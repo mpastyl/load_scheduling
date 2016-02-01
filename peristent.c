@@ -43,12 +43,16 @@ int  Shared_Comp_and_Swap(int loc, int exp_value, int new_value){
 PROCESS_THREAD(main_process, ev, data)
 {
   static struct etimer et;
-  
+  static int i;
   PROCESS_BEGIN();
   
   broadcast_open(&broadcast, 129, &broadcast_call);
   unicast_open(&uc, 146, &unicast_callbacks);
   saved_seq_numbers[node_id -1]=0;
+  for(i=0; i<24;i++){
+ 	hourly_load[i]=0;
+	//state[i]=0;
+  }
 
   etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));

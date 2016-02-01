@@ -26,7 +26,7 @@ PROCESS(start_2pc_process, "start_2pc_process");
 //AUTOSTART_PROCESSES(&start_2pc_process);
 /*---------------------------------------------------------------------------*/
 
-#define TIMEOUT		(2*CLOCK_SECOND)
+#define TIMEOUT		(4*CLOCK_SECOND)
 
 
 
@@ -91,9 +91,9 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 		new_message.w_loc=sender_wloc;
 		new_message.w_value=sender_wvalue;
 		new_message.exp_value=sender_exp_value;
-                if (state==0){
+                if (state[sender_wloc]==0){
 			if(strcmp(sender_op,"COMP_AND_SWAP")||((!strcmp(sender_op,"COMP_AND_SWAP"))&&(hourly_load[sender_wloc]==sender_exp_value))){ 
-                        	state=1;
+                        	state[sender_wloc]=1;
                         	new_message.msg="REPLY_COMMIT";
                         	printf("sending back positive!! unicast to");
                         	printf("\n");
@@ -122,7 +122,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 		printf("Commiting  write seq %d from %d: location %d value %d\n",sender_seq,sender_id,sender_wloc,sender_wvalue);
 		//}
 	     }
-             state=0;
+             state[sender_wloc]=0;
         }
 
 
@@ -277,7 +277,7 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
  	flag_bcast_over_or_aborted=0;
 
 	
-    	if (state==1){
+    	if (state[bcast_msg.w_loc]==1){
 		saved_seq_numbers[node_id-1]++;
 		local_seq_number=saved_seq_numbers[node_id-1];
 		taken_at_init++;
@@ -287,14 +287,16 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
     		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
         	continue;
 	}
-	state=1;
+	state[bcast_msg.w_loc]=1;
+	printf("Hey1: locked loc %d\n",bcast_msg.w_loc);
 	etimer_set(&timeout_timer,TIMEOUT);
 	packetbuf_copyfrom(&bcast_msg, sizeof(bcast_msg));
 	broadcast_send(&broadcast);
     	printf("broadcast message sent\n");
         PROCESS_WAIT_EVENT_UNTIL((ev == event_bcast_over)||(etimer_expired(&timeout_timer)));
         printf("wait is over\n");
-        state=0;
+        state[target_msg.w_loc]=0;
+	printf("Hey2: unlocked loc %d\n",target_msg.w_loc);
 	if (etimer_expired(&timeout_timer)){
 		printf(" Bcast no %d timed out, moving on to the next one\n",saved_seq_numbers[node_id-1]);
 		timeout++;

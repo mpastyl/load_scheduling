@@ -13,7 +13,7 @@ static int naive_counter=0;
 static int votes[6];
 static int saved_seq_numbers[6];
 static int num_nodes=6;
-static int state=0; //state=1 we are in phase 1 of some broadcast so reject new incoming broadcasts
+static int state[24]; //state=1 we are in phase 1 of some broadcast so reject new incoming broadcasts
 //int node_seq_number=0;  
 static int flag_bcast_over_or_aborted=0;
 
