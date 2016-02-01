@@ -195,8 +195,6 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
                 flag_bcast_over_or_aborted=2;
 		packetbuf_copyfrom(&new_message, sizeof(new_message));
 		broadcast_send(&broadcast);
-                //uip_create_linklocal_allnodes_mcast(&addr);
-                //simple_udp_sendto(&broadcast_connection,&new_message,sizeof(new_message),&addr);
                 process_post(&example_broadcast_process,event_bcast_over,&flag_bcast_over_or_aborted);
         }
         else if (flag==1) printf("STILL WAITING!\n");
@@ -208,14 +206,15 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 		new_message.w_loc=sender_wloc;
 		new_message.w_value=sender_wvalue;
 		new_message.exp_value=sender_exp_value;
+		// at this version, coordinator participates in its own commit
+		// have already checked if its a valid comp and swap
+		hourly_load[new_message.w_loc] = new_message.w_value;
                 printf("ALL READY TO COMMIT!\n");
                 saved_seq_numbers[node_id-1]++;
 		local_seq_number=saved_seq_numbers[node_id-1];
                 flag_bcast_over_or_aborted=1;
 		packetbuf_copyfrom(&new_message, sizeof(new_message));
 		broadcast_send(&broadcast);
-                //uip_create_linklocal_allnodes_mcast(&addr);
-                //simple_udp_sendto(&broadcast_connection,&new_message,sizeof(new_message),&addr);
                 process_post(&example_broadcast_process,event_bcast_over,&flag_bcast_over_or_aborted);
         }
 
@@ -288,14 +287,23 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
         	continue;
 	}
 	state[bcast_msg.w_loc]=1;
-	printf("Hey1: locked loc %d\n",bcast_msg.w_loc);
+	//First check that the coordinator can commit
+	//At this version the coordinator also participates in the commit
+        if (!strcmp(target_msg.op,"COMP_AND_SWAP")&&(hourly_load[target_msg.w_loc]!=target_msg.exp_value)){
+		printf("Could not comp_and_swap my own location\n");
+        	event_2pc_succ = process_alloc_event();
+                process_post(&start_2pc_process,event_2pc_succ,"2PC_F");
+		break;
+		
+	}
+	////
 	etimer_set(&timeout_timer,TIMEOUT);
 	packetbuf_copyfrom(&bcast_msg, sizeof(bcast_msg));
 	broadcast_send(&broadcast);
-    	printf("broadcast message sent\n");
         PROCESS_WAIT_EVENT_UNTIL((ev == event_bcast_over)||(etimer_expired(&timeout_timer)));
         printf("wait is over\n");
-        state[target_msg.w_loc]=0;
+        //Something fishy going on here, bcast_msg doesnt work even thought static, target_msg works
+	state[target_msg.w_loc]=0;
 	printf("Hey2: unlocked loc %d\n",target_msg.w_loc);
 	if (etimer_expired(&timeout_timer)){
 		printf(" Bcast no %d timed out, moving on to the next one\n",saved_seq_numbers[node_id-1]);
@@ -315,16 +323,13 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
     		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 		continue;
 	}
-        //while (       saved_seq_number==node_seq_number) printf("hey\n"); //wait untill bcast is successfull
         flag= (*(int *)data);
         if ((flag)==1){
                 printf(" Bcast no %d was succesfull, moving on to the next \n",saved_seq_numbers[node_id-1]-1);
-                        //node_seq_number++;
 		succ++;
         }
         else{
                 printf("Bcast no %d unsuccesfull, backing off and retrying\n",saved_seq_numbers[node_id-1]-1);
-                        //node_seq_number++;
 		aborted++;
 		printf("HEY!!!! %s\n",bcast_msg.op);
 		if (!strcmp(bcast_msg.op,"COMP_AND_SWAP")){

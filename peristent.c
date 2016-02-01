@@ -50,7 +50,7 @@ PROCESS_THREAD(main_process, ev, data)
   unicast_open(&uc, 146, &unicast_callbacks);
   saved_seq_numbers[node_id -1]=0;
   for(i=0; i<24;i++){
- 	hourly_load[i]=0;
+ 	//hourly_load[i]=0;
 	//state[i]=0;
   }
 
@@ -61,10 +61,13 @@ PROCESS_THREAD(main_process, ev, data)
   Shared_Write(node_id,node_id+5);
   PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_to_comm );
   printf("ouf\n");
-  Shared_Comp_and_Swap(node_id,10,node_id+5);
 
+  printf(" load at slot %d is %d\n",node_id,hourly_load[node_id]);
+  Shared_Comp_and_Swap(node_id,10,node_id+7);
+ 
   PROCESS_WAIT_EVENT_UNTIL(ev == event_2pc_to_comm );
   printf("ouf2\n");
+  printf(" load at slot %d is %d\n",node_id,hourly_load[node_id]);
   if(!(strcmp(data,"BCAST_S"))){
  	printf("Comp and Swap was succ\n");
   }
@@ -77,6 +80,8 @@ PROCESS_THREAD(main_process, ev, data)
   //process_start(&start_2pc_process,&new_msg);
   //process_start(&start_2pc_process,NULL);
   //process_post(&start_2pc_process,NULL,&new_msg);
+
+  
 
   while(1) PROCESS_WAIT_EVENT();
 
