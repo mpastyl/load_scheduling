@@ -3,6 +3,7 @@
 PROCESS_NAME(main_process);
 PROCESS_NAME(start_2pc_process);
 PROCESS_NAME(example_broadcast_process);
+PROCESS_NAME(schedule_task);
 
 static struct unicast_conn uc;
 static struct broadcast_conn broadcast;

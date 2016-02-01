@@ -383,12 +383,12 @@ PROCESS_THREAD(start_2pc_process, ev, data)
 	if(!strcmp(data,"2PC_S")){
 		printf("2PC was successful\n");
   		event_2pc_to_comm = process_alloc_event();
-        	process_post(&main_process,event_2pc_to_comm,"BCAST_S");
+        	process_post(&schedule_task,event_2pc_to_comm,"BCAST_S");
 	}
 	else{
 		printf("2PC was unsuccessful because a conflict was detected and you wanted cmp_and_swap\n");
   		event_2pc_to_comm = process_alloc_event();
-        	process_post(&main_process,event_2pc_to_comm,"BCAST_F");
+        	process_post(&schedule_task,event_2pc_to_comm,"BCAST_F");
 	}
   }
   //while(1){
