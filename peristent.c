@@ -103,9 +103,9 @@ PROCESS_THREAD(main_process, ev, data)
   etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   
-  new_task.load=5;
+  new_task.load=node_id;
   new_task.lower_slot=1;
-  new_task.upper_slot=4; 
+  new_task.upper_slot=2; 
   process_start(&schedule_task,&new_task);	  
 
  /*

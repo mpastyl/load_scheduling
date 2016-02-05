@@ -123,6 +123,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 		//}
 	     }
              state[sender_wloc]=0;
+	     printf("just unlocked %d\n",sender_wloc);
         }
 
 
@@ -293,12 +294,14 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 		printf("Could not comp_and_swap my own location\n");
         	event_2pc_succ = process_alloc_event();
                 process_post(&start_2pc_process,event_2pc_succ,"2PC_F");
+		state[bcast_msg.w_loc]=0;
 		break;
 		
 	}
 	////
 	etimer_set(&timeout_timer,TIMEOUT);
 	packetbuf_copyfrom(&bcast_msg, sizeof(bcast_msg));
+	printf("broadcast message sent\n");
 	broadcast_send(&broadcast);
         PROCESS_WAIT_EVENT_UNTIL((ev == event_bcast_over)||(etimer_expired(&timeout_timer)));
         printf("wait is over\n");
@@ -375,7 +378,7 @@ PROCESS_THREAD(start_2pc_process, ev, data)
   
   //etimer_set(&et, CLOCK_SECOND * 2 + random_rand() % (CLOCK_SECOND * 2));
   //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-  if ((node_id==5)||(node_id==6)){
+  if ((node_id==5)||(node_id==6)||(node_id==4)){
   	printf(" got: wloc -> %d   wvalue %d \n",brand_new_msg.w_loc,brand_new_msg.w_value); 
   	process_start(&example_broadcast_process,&brand_new_msg);
 	//printf("called the other process\n");
